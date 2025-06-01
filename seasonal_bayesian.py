@@ -1,0 +1,146 @@
+import pathlib
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from src.model import Tank, make_models
+from src.opt import BayesianOptimizer
+
+TANK_LEVEL = 4
+
+TIMESTEPS = 60 * 60 * 24
+AREA = 601.61
+
+DATA_PATH = pathlib.Path("./data")
+DATA_NAME = pathlib.Path("3009680_p4.csv")
+
+STORAGE_RANGE = None
+RUNOFF_RANGE = [
+    (0.1, 0.5),
+    (0.1, 0.5),
+    (0.03, 0.1),
+    (0.005, 0.01),
+    (0.0005, 0.01),
+]
+SIDE_RANGE = [
+    (5, 60),
+    (5, 60),
+    (0, 50),
+    (0, 30),
+    (0, 0),
+]
+INFIL_RANGE = [
+    (0.1, 0.5),
+    (0.01, 0.1),
+    (0.005, 0.01),
+    (0, 0),
+]
+
+base_range = {
+    "storage_range" : STORAGE_RANGE,
+    "side_outlet_height_range": SIDE_RANGE,
+    "runoff_coef_range": RUNOFF_RANGE,
+    "infiltration_coef_range": INFIL_RANGE
+}
+
+df_total = pd.read_csv(DATA_PATH / DATA_NAME)
+
+df_total["date"] = pd.to_datetime(df_total["date"])
+
+years = range(2009, 2013)
+periods = []
+for y in years:
+    periods.extend([
+        (f"{y}-02-01", f"{y}-06-14"),
+        (f"{y}-06-15", f"{y}-09-30"),
+        (f"{y}-10-01", f"{y+1}-01-31"),
+    ])
+
+
+def r2_score(y_true, y_pred):
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    y_mean = np.mean(y_true)
+    ss_res = np.sum((y_true - y_pred) ** 2)
+    ss_tot = np.sum((y_true - y_mean) ** 2)
+
+    r2 = 1 - (ss_res / ss_tot)
+
+    return r2
+
+final_storage = None    # Set this None, since initial storage
+                        # for the first period is not decided.
+
+for start, end in periods:
+    start = pd.to_datetime(start)
+    end = pd.to_datetime(end)
+    
+    mask = (df_total["date"] >= start) & (df_total["date"] <= end)
+    df_target = df_total.loc[mask]
+
+    df_len = len(df_target)
+
+    dates  = df_target["date"].to_numpy()
+    precip_target = df_target["P"].to_numpy()
+    runoff_target = df_target["Q"].to_numpy()
+    aet_target = df_target["AET"].to_numpy()
+
+    optimizer = BayesianOptimizer(
+        tank_num=TANK_LEVEL,
+        area=AREA,
+        timesteps=TIMESTEPS,
+        precip=precip_target,
+        AET=aet_target,
+        observed_runoff=runoff_target,
+        objective=r2_score,
+        direction="maximize",
+        fixed_storage=final_storage,
+        verbosity=False,
+        n_jobs=None,
+        n_trials=800,
+        **base_range
+    )
+    result = optimizer.run()
+    history = optimizer.get_history()
+
+    best_coefs, best_value = result
+
+    best_coefs.print()
+
+    best_model = make_models(
+        tank_num=TANK_LEVEL,
+        coef=best_coefs,
+        area=AREA,
+        timesteps=TIMESTEPS
+    )
+    for i in range(df_len):
+        best_model.update(precip_target[i], aet_target[i])
+    tank_history = best_model.get_history()
+
+    total_runoff, total_storage = tank_history
+
+    final_storage = total_storage[-1]
+
+    runoff_max = max(runoff_target.max(), np.array(total_runoff).max())
+    fig, ax1 = plt.subplots(figsize=(20, 8))
+
+    ax1.plot(
+        dates,
+        total_runoff,
+        label="Simulated Runoff",
+        color="black"
+    )
+    ax1.plot(
+        dates,
+        runoff_target,
+        label="Observed Runoff",
+        color="tab:orange"
+    )
+    ax1.set_xlabel("Date")
+    ax1.set_ylabel("Runoff [m³/s]")
+    ax1.set_ylim(0, runoff_max)
+    ax1.legend(loc="upper left")
+    ax1.set_title(f"Best Runoff Simulation ({start} to {end})")
+
+    plt.show()
