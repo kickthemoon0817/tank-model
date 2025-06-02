@@ -39,9 +39,9 @@ class Coefs:
         if storage_range is None:
             storage_range = [(0.0, 10.0)] * tank_num
         if side_outlet_height_range is None:
-            side_outlet_height_range = [(0.0, 80.0)] * (tank_num + 1)
+            side_outlet_height_range = [(0.0, 80.0)] * tank_num + [(0, 0)]
         if runoff_coef_range is None:
-            runoff_coef_range = [(0.01, 0.6)] * (tank_num + 1)
+            runoff_coef_range = [(0.01, 0.6)] * tank_num + [(0, 0)]
         if infiltration_coef_range is None:
             infiltration_coef_range = [(0.01, 0.6)] * tank_num
 
@@ -175,11 +175,11 @@ class Coefs:
 
         log()
         log("─" * 10 + " Top tank " + "─" * 10)
-        log(f"        Initial Storage             : {round(self.storage[0], 0)}")
+        log(f"        Initial Storage             : {round(self.storage[0], 3)}")
         log(f"        Runoff coefficient 1        : {round(self.runoff_coef[0], 3)}")
-        log(f"        Side outlet height 1        : {round(self.side_outlet_height[0], 0)}")
+        log(f"        Side outlet height 1        : {round(self.side_outlet_height[0], 3)}")
         log(f"        Runoff coefficient 2        : {round(self.runoff_coef[1], 3)}")
-        log(f"        Side outlet height 2        : {round(self.side_outlet_height[1], 0)}")
+        log(f"        Side outlet height 2        : {round(self.side_outlet_height[1], 3)}")
         log(f"        Infiltration Coefficient    : {round(self.infiltration_coef[0], 3)}\n")
 
         for i in range(1, self.tank_num-1):
@@ -190,15 +190,15 @@ class Coefs:
             else:
                 label = f"{i + 1}th tank"
             log("─" * 10 + f" {label} " + "─" * 10)
-            log(f"        Initial Storage             : {round(self.storage[i], 0)}")
+            log(f"        Initial Storage             : {round(self.storage[i], 3)}")
             log(f"        Runoff coefficient          : {round(self.runoff_coef[i + 1], 3)}")
-            log(f"        Side outlet height          : {round(self.side_outlet_height[i + 1], 0)}")
+            log(f"        Side outlet height          : {round(self.side_outlet_height[i + 1], 3)}")
             log(f"        Infiltration Coefficient    : {round(self.infiltration_coef[i], 3)}\n")
 
         log("─" * 9 + " Bottom tank " + "─" * 9)
-        log(f"        Initial Storage             : {round(self.storage[-1], 0)}")
+        log(f"        Initial Storage             : {round(self.storage[-1], 3)}")
         log(f"        Runoff coefficient          : {round(self.runoff_coef[-1], 3)}")
-        log(f"        Side outlet height          : {round(self.side_outlet_height[-1], 0)}")
+        log(f"        Side outlet height          : {round(self.side_outlet_height[-1], 3)}")
         log(f"        Infiltration Coefficient    : {round(self.infiltration_coef[-1], 3)}\n")
         log("─" * 11 + " GA end " + "─" * 10)
 
