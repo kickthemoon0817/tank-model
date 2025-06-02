@@ -174,5 +174,33 @@ def visualize_tuning(params_history: list[(Coefs, float)], show=True, save_path=
     ax.set_title("Hyperparameter Tuning\n(Parallel Coordinates, colored by score)", fontsize=12)
 
     plt.tight_layout()
-    plt.show()
     
+    if show:
+        plt.show()
+
+    if save_path:
+        plt.savefig(save_path)
+
+def visualize_storage(dates, total_storage, show=True, save_path=None):
+    fig, ax = plt.subplots(figsize=(16, 7))
+    n_tanks = len(total_storage[0])
+    for i in range(n_tanks):
+        tank_storage = [total_storage[t][i] for t in range(len(total_storage))]
+        ax.plot(dates, tank_storage, label=f"Tank {i+1}")
+
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Storage [mm]")
+    ax.legend(loc="upper right")
+    ax.set_title("Storage History per Tank")
+
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+    ax.tick_params(axis='x', rotation=45)
+
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+
+    if save_path:
+        plt.savefig(save_path)
