@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from matplotlib import cm
 import numpy as np
 import pandas as pd
@@ -9,6 +10,7 @@ def visualize_runoff(
         dates,
         runoff_target,
         total_runoff,
+        precip=None,
         show=True,
         save_path=None
     ):
@@ -34,6 +36,25 @@ def visualize_runoff(
     ax1.set_ylim(0, runoff_max)
     ax1.legend(loc="upper left")
     ax1.set_title(f"Best Runoff Simulation ({start} to {end})")
+
+    if end - start > 365:
+        ax1.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    else:
+        ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    ax1.tick_params(axis='x', rotation=45)
+
+    if precip is not None:
+        precip_max = max(precip) * 2.5
+
+        # 강수량 바 차트
+        ax2 = ax1.twinx()
+        ax2.bar(dates, precip, label="Precipitation", color='tab:blue', width=1.0)
+        ax2.set_ylabel("Precipitation [mm]")
+        ax2.set_ylim(precip_max, 0)
+        ax2.legend(loc='upper right')
+
+    plt.tight_layout()
 
     if show:
         plt.show()
