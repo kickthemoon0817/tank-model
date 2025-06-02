@@ -83,7 +83,7 @@ class Tank_model:
 
         self.total_runoff = []
 
-        self.tank_storages = [[] for _ in range(self.tank_num)]
+        self.tank_storages = []
 
     def update(self, precip, AET):
         """
@@ -100,8 +100,10 @@ class Tank_model:
             tank_runoff += runoff
         self.total_runoff.append(tank_runoff * self.area * 1000 / self.timesteps)
         
+        tank_storages_temp = []
         for i in range(self.tank_num):
-            self.tank_storages[i].append(self.tanks[i].storage)
+            tank_storages_temp.append(self.tanks[i].storage)
+        self.tank_storages.append(tank_storages_temp)
 
     def get_history(self):
         return self.total_runoff, self.tank_storages
