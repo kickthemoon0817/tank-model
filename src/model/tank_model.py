@@ -36,37 +36,71 @@ class Tank:
     def update(self, inflow, Loss=0):
         """
         t 시점에서 그 다음 t+1 시점 상태로 탱크들의 상태 최신화 
+        loss(AET) first, next as infiltration, and finally runoff
 
         inflow : 강수량 혹은 상위 탱크로부터의 유입량
         Loss   : 실제증발산량, 혹은 상부 탱크에서의 부족량 
 
-        Returns : 저류량 부족 여부, 저류량 부족량, 측면 유출량, 바닥 유출량
+        Returns : 저류량 부족량, 측면 유출량, 바닥 유출량
         """
-        infiltration = 0
-        runoff = 0
+        # Compute loss from upper tank or AET, first.
         self.storage += inflow
-        if self.storage < Loss:
-            shortage_amount = Loss - self.storage
+        available = self.storage
+
+        if available < Loss:
+            shortage_amount = Loss - available
+            self.storage = 0.0
+            return shortage_amount, 0.0, 0.0
+
+        # Compute infiltration to next tank, next.
+        available -= Loss
+        shortage_amount = 0.0
+        infiltration = 0
+
+        potential_infil = self.infiltration_coef * available
+        if available <= potential_infil:
+            infiltration = available 
             self.storage = 0
-            return shortage_amount, runoff, infiltration
+            return 0, 0, infiltration
+
+        infiltration = potential_infil
+        available -= infiltration
+
+        # Compute runoff, finally.
+
+        runoff = 0
 
         if self.level == 1:
-            infiltration = self.infiltration_coef * self.storage
-            if self.storage > self.side_outlet_height_1: runoff += self.runoff_coef_1 * (self.storage - self.side_outlet_height_1)
-            if self.storage > self.side_outlet_height_2: runoff += self.runoff_coef_2 * (self.storage - self.side_outlet_height_2)
+            if self.storage > self.side_outlet_height_1:
+                runoff += (
+                    self.runoff_coef_1
+                    * (available - self.side_outlet_height_1)
+                )
+            if self.storage > self.side_outlet_height_2:
+                runoff += (
+                    self.runoff_coef_2
+                    * (available - self.side_outlet_height_2)
+                )
         elif self.level != self.tank_num:
             infiltration = self.infiltration_coef * self.storage
-            if self.storage > self.side_outlet_height_1: runoff += self.runoff_coef_1 * (self.storage - self.side_outlet_height_1)
+            if self.storage > self.side_outlet_height_1:
+                runoff += (
+                    self.runoff_coef_1
+                    * (available - self.side_outlet_height_1)
+                )
         else:
-            runoff += self.storage * self.runoff_coef_1
+            runoff += available * self.runoff_coef_1
         """
         증발산량이 탱크의 저류량보다 많이 발생하는 경우
         1. 하부 탱크에 부족 저류량 전달
         2. 측면 및 바닥 유출공에서 유출이 발생하지 않음
         """
-        
-        self.storage -= (Loss + infiltration + runoff)
-        shortage_amount = 0
+
+        runoff = min(runoff, available)
+        available -= runoff
+
+        self.storage = available
+
         return shortage_amount, runoff, infiltration
 
 # ───────────── 탱크 모델 ──────────────────────────────
@@ -80,6 +114,8 @@ class Tank_model:
         self.timesteps = timesteps
 
         self.tank_num = len(tanks)
+
+        #TODO: add the part for recording shortage_amount
 
         self.total_runoff = []
 
