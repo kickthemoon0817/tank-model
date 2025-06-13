@@ -2,10 +2,10 @@ import pathlib
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
-from src.model import Tank, make_models
-from src.opt import BayesianOptimizer
+from src.model import make_models
+from src.opt import GAOptimizer
+from src.vis import *
 
 TANK_LEVEL = 4
 
@@ -15,7 +15,12 @@ AREA = 601.61
 DATA_PATH = pathlib.Path("./data")
 DATA_NAME = pathlib.Path("3009680_p4.csv")
 
-STORAGE_RANGE = None
+STORAGE_RANGE = [
+    (0, 20),
+    (0, 40),
+    (0, 10),
+    (0, 10)
+]
 RUNOFF_RANGE = [
     (0.1, 0.5),
     (0.1, 0.5),
@@ -37,6 +42,10 @@ INFIL_RANGE = [
     (0, 0),
 ]
 
+GENERATION = 400
+POPULATION = 200
+
+
 base_range = {
     "storage_range" : STORAGE_RANGE,
     "side_outlet_height_range": SIDE_RANGE,
@@ -56,7 +65,6 @@ for y in years:
         (f"{y}-06-15", f"{y}-09-30"),
         (f"{y}-10-01", f"{y+1}-01-31"),
     ])
-
 
 def r2_score(y_true, y_pred):
     y_true = np.array(y_true)
@@ -86,7 +94,7 @@ for start, end in periods:
     runoff_target = df_target["Q"].to_numpy()
     aet_target = df_target["AET"].to_numpy()
 
-    optimizer = BayesianOptimizer(
+    optimizer = GAOptimizer(
         tank_num=TANK_LEVEL,
         area=AREA,
         timesteps=TIMESTEPS,
@@ -96,13 +104,12 @@ for start, end in periods:
         objective=r2_score,
         direction="maximize",
         fixed_storage=final_storage,
-        verbosity=False,
-        n_jobs=None,
-        n_trials=800,
+        generations=GENERATION,
+        population_size=POPULATION,
         **base_range
     )
     result = optimizer.run()
-    history = optimizer.get_history()
+    params_history = optimizer.get_history()
 
     best_coefs, best_value = result
 
@@ -122,25 +129,6 @@ for start, end in periods:
 
     final_storage = total_storage[-1]
 
-    runoff_max = max(runoff_target.max(), np.array(total_runoff).max())
-    fig, ax1 = plt.subplots(figsize=(20, 8))
-
-    ax1.plot(
-        dates,
-        total_runoff,
-        label="Simulated Runoff",
-        color="black"
-    )
-    ax1.plot(
-        dates,
-        runoff_target,
-        label="Observed Runoff",
-        color="tab:orange"
-    )
-    ax1.set_xlabel("Date")
-    ax1.set_ylabel("Runoff [m³/s]")
-    ax1.set_ylim(0, runoff_max)
-    ax1.legend(loc="upper left")
-    ax1.set_title(f"Best Runoff Simulation ({start} to {end})")
-
-    plt.show()
+    visualize_runoff(dates, runoff_target, total_runoff, precip=precip_target ,show=True, save_path=None)
+    # visualize_tuning(params_history, show=True, save_path=None)
+    visualize_storage(dates, total_storage, show=True, save_path=None)
