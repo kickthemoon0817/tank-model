@@ -153,7 +153,10 @@ class GAOptimizer:
         )
         for i in range(len(self.precip)):
             model.update(self.precip[i], self.AET[i])
-        return self.objective(model.total_runoff, self.observed_runoff)
+        
+        pred = np.array(model.total_runoff)
+        true = np.array(self.observed_runoff)
+        return self.objective(pred, true)
 
     def _safe_mutate(self, value: float, scale: float) -> float:
         """
